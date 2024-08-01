@@ -1,5 +1,6 @@
 import glm
 from SpatialTransform import Pose
+from typing import Optional, cast
 
 
 class BvhJoint:
@@ -8,15 +9,15 @@ class BvhJoint:
     Keyframes contain the motion data."""
     Name: str
     Offset: glm.vec3
-    EndSite: glm.vec3
+    EndSite: Optional[glm.vec3]
     Keyframes: list[Pose]
     Channels: list[str]
     Children: list["BvhJoint"]
 
-    def __init__(self, name: str, offset: glm.vec3 = None) -> None:
+    def __init__(self, name: str, offset: Optional[glm.vec3]  = None) -> None:
         self.Name = name
         self.Offset = glm.vec3() if offset is None else glm.vec3(offset)
-        self.EndSite = glm.vec3(0, 1, 0)
+        self.EndSite = None
         self.Keyframes = []
         self.Channels = []
         self.Children = []
@@ -38,10 +39,13 @@ class BvhJoint:
             tip = self.Children[0].Offset
         elif children > 1:
             tip = sum(child.Offset for child in self.Children) / children
+            assert tip is not float, "Tip must be a vector."
+            tip = cast(glm.vec3, tip)
         else:
+            assert self.EndSite is not None, "EndSite must be defined if there is no child joint."
             tip = self.EndSite
 
-        return tip if glm.length2(tip) > 0.001 else glm.vec3(0, 1, 0)
+        return tip if glm.length2(tip) > 0.001 else glm.vec3(0, 1, 0) # type: ignore
 
     def getLength(self) -> float:
         """Length of the bone which is based on the tip."""
@@ -59,7 +63,7 @@ class BvhJoint:
 
     def layout(self, index: int = 0, depth: int = 0) -> list[tuple["BvhJoint", int, int]]:
         """Returns the hierarchical layout of this joint and its children recursivly."""
-        result = [[self, index, depth]]
+        result: list[tuple["BvhJoint", int, int]] = [(self, index, depth)]
         for child in self.Children:
             result.extend(child.layout(result[-1][1] + 1, depth + 1))
         return result

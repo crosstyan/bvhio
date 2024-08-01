@@ -1,3 +1,4 @@
+from typing import Optional, cast
 import glm
 import bisect
 from SpatialTransform import Transform, Pose
@@ -12,8 +13,16 @@ class Joint(Transform):
     - The RestPose and Keyframe data is in local space only.
     - The method ``readPose()`` combines the RestPose and Keframes."""
 
+
+    _Parent: Optional["Joint"]  = None
+    _Children: list["Joint"] = []
+    _RestPose: Transform
+    _Keyframes: list[tuple[int, Transform]] = []
+    _KeyframeMap: dict[int, Transform]
+    _CurrentFrame:int = -1
+
     @property
-    def Parent(self) -> "Joint":
+    def Parent(self) -> Optional["Joint"]:
         return self._Parent
 
     @property
@@ -37,8 +46,8 @@ class Joint(Transform):
     def Keyframes(self, value: list[tuple[int, Transform]]) -> None:
         self._Keyframes = list(value)
         self._KeyframeMap = {frame: key for frame, key in self._Keyframes}
-        self.RestPose.clearChildren(keep=[None])
-        self.RestPose.attach(*[key for frame, key in value], keep=[None])
+        self.RestPose.clearChildren(keep=[])
+        self.RestPose.attach(*[key for frame, key in value], keep=[])
 
     @property
     def RestPose(self) -> Transform:
@@ -47,19 +56,19 @@ class Joint(Transform):
 
     @RestPose.setter
     def RestPose(self, value: Pose) -> None:
-        self._RestPose = value.duplicate()
+        self._RestPose = cast(Transform, value.duplicate())
 
     def __init__(
-            self, name: str = None,
-            position: glm.vec3 = None,
-            rotation: glm.quat = None,
-            scale: glm.vec3 = None,
-            restPose: Transform = None,
-            keyFrames: list[tuple[int, Transform]] = None) -> None:
+            self, name: str = "",
+            position: glm.vec3 = glm.vec3(),
+            rotation: glm.quat = glm.quat(),
+            scale: glm.vec3 = glm.vec3(1),
+            restPose: Optional[Transform] = None,
+            keyFrames: Optional[list[tuple[int, Transform]]] = None) -> None:
 
         super().__init__(name, position, rotation, scale)
-        self._Parent: "Joint" = None
-        self._Children: list["Joint"] = []
+        self._Parent = None
+        self._Children = []
 
         self._RestPose: Transform = Transform(name='RestPose') if restPose is None else restPose
         self._Keyframes: list[tuple[int, Transform]] = [] if keyFrames is None else keyFrames
@@ -87,7 +96,7 @@ class Joint(Transform):
         - If the frame id is between two keyframes, pose properties are linearly interpolated."""
         if len(self.Keyframes) == 0:
             key = Transform(name=f'Key {frame} (placeholder)')
-            self.RestPose.duplicate(recursive=False).attach(key, keep=None)
+            self.RestPose.duplicate(recursive=False).attach(key, keep=[])
             return key
 
         if frame < 0:
@@ -121,15 +130,16 @@ class Joint(Transform):
                         position=glm.lerp(before[1].Position, after[1].Position, weight),
                         rotation=glm.lerp(before[1].Rotation, after[1].Rotation, weight),
                         scale=glm.lerp(before[1].Scale, after[1].Scale, weight)
-                    ), keep=None
+                    ), keep=[]
                 )
                 return restPoseCopy.Children[0]
 
-    def setKeyframe(self, frame: int, pose: Transform, keep: list[str] = ['position', 'rotation', 'scale']) -> "Joint":
+    def setKeyframe(self, frame: int, pose: Transform, keep: Optional[list[str]] = None) -> "Joint":
         """Inserts the given pose to the the keyframes.
         - If there is already a keyframe at the frame id, it will be overwritten.
         - If the frame number is negative, it counts as the n-th frame from the end.
         - This pose is added later to the rest pose to calculate the final animation."""
+        if keep is None: keep = ['position', 'rotation', 'scale']
         if frame < 0: frame = max(0, self.getKeyframeRange(includeChildren=False)[1] + 1 - frame)
         index = self.__findFrameIndex(frame)
 
@@ -157,7 +167,7 @@ class Joint(Transform):
         index = self.__findFrameIndex(frame)
 
         if index != len(self.Keyframes) and self.Keyframes[index][0] == frame:
-            self.Keyframes.pop(index)[1].clearParent(keep=None)
+            self.Keyframes.pop(index)[1].clearParent(keep=[])
 
         if recursive:
             for child in self.Children:
@@ -165,11 +175,12 @@ class Joint(Transform):
 
         return self
 
-    def loadKeyframe(self, frame: int, recursive: bool = True, use: bool = ['position', 'rotation', 'scale']) -> "Joint":
+    def loadKeyframe(self, frame: int, recursive: bool = True, use: Optional[list[str]] = None) -> "Joint":
         """Loads the pose at the given frame into the transforms properties.
         - This is the animation data without rest pose.
 
         Returns itself."""
+        if use is None: use = ['position', 'rotation', 'scale']
         key = self.getKeyframe(frame)
 
         if 'position' in use: self.Position = key.Position
@@ -182,11 +193,12 @@ class Joint(Transform):
 
         return self
 
-    def loadRestPose(self, recursive: bool = True, use: bool = ['position', 'rotation', 'scale']) -> "Joint":
+    def loadRestPose(self, recursive: bool = True, use: Optional[list[str]] = None) -> "Joint":
         """Sets joint properties to the rest pose.
         - If recursive is True -> Child joints do also load their rest pose.
 
         Returns itself."""
+        if use is None: use = ['position', 'rotation', 'scale']
         # self alignment
         if 'position' in use: self.Position = self.RestPose.Position
         if 'rotation' in use: self.Rotation = self.RestPose.Rotation
@@ -225,7 +237,7 @@ class Joint(Transform):
 
         return self
 
-    def loadPose(self, frame: int, recursive: bool = True, use: bool = ['position', 'rotation', 'scale']) -> "Joint":
+    def loadPose(self, frame: int, recursive: bool = True, use: Optional[list[str]] = None) -> "Joint":
         """Sets joint properties to the animation at the given frame id. The animation is defined as 'Pose = RestPose + Keyframe'.
         - If the frame number is negative, it will look for the n-th frame from the end.
         - If there are no keyframes, the joint propetries will not change.
@@ -234,6 +246,7 @@ class Joint(Transform):
         - If recursive is True -> Child joints do also load their pose.
 
         Returns itself."""
+        if use is None: use = ['position', 'rotation', 'scale']
         # get animation data
         key = self.getKeyframe(frame)
 
@@ -302,12 +315,14 @@ class Joint(Transform):
 
         return self
 
-    def attach(self, *nodes: "Joint", keep: list[str] = ['position', 'rotation', 'scale', 'rest', 'anim']) -> "Joint":
+    def attach(self, *nodes: "Joint", keep: Optional[list[str]] = None) -> "Joint":
+        if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
         super().attach(*nodes, keep=keep)
 
         if keep is not None and ('anim' in keep or 'rest' in keep):
             root = self
             while root.Parent is not None:
+                assert self.Parent is not None
                 root = self.Parent
 
             if 'rest' in keep:
@@ -331,12 +346,14 @@ class Joint(Transform):
 
         return self
 
-    def detach(self, *nodes: "Joint", keep: list[str] = ['position', 'rotation', 'scale', 'rest', 'anim']) -> "Joint":
+    def detach(self, *nodes: "Joint", keep: Optional[list[str]] = None) -> "Joint":
+        if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
         super().detach(*nodes)
 
         if keep is not None and ('anim' in keep or 'rest' in keep):
             root = self
             while root.Parent is not None:
+                assert self.Parent is not None
                 root = self.Parent
 
             if 'rest' in keep:
@@ -360,16 +377,18 @@ class Joint(Transform):
 
         return self
 
-    def clearParent(self, keep: list[str] = ['position', 'rotation', 'scale', 'rest', 'anim']) -> "Joint":
-        return super().clearParent(keep=keep)
+    def clearParent(self, keep: Optional[list[str]]  = None) -> "Joint":
+        if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
+        return cast("Joint", super().clearParent(keep=keep)) 
 
-    def clearChildren(self, keep: list[str] = ['position', 'rotation', 'scale', 'rest', 'anim']) -> "Joint":
-        return super().clearChildren(keep=keep)
+    def clearChildren(self, keep: Optional[list[str]] = None) -> "Joint":
+        if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
+        return cast("Joint", super().clearChildren(keep=keep))
 
-    def applyPosition(self, position: glm.vec3 = None, recursive: bool = False) -> "Joint":
-        return super().applyPosition(position, recursive)
+    def applyPosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> "Joint":
+        return super().applyPosition(position, recursive) # type: ignore
 
-    def applyRestposePosition(self, position: glm.vec3 = None, recursive: bool = False) -> "Joint":
+    def applyRestposePosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> "Joint":
         """"Resets the position of the Restpose to (0,0,0) or adds the given position.
         - This will load the restpose and overwrites the current pose of the transform!
         - You may want to call `loadPose` after this one or store the current properties.
@@ -379,6 +398,7 @@ class Joint(Transform):
 
         Returns itself.
         """
+        if position is None: position = glm.vec3()
         change, changeInverse = self.RestPose._applyPositionGetChanges(position)
         self.RestPose.applyPosition(position, recursive=False)
 
@@ -390,10 +410,10 @@ class Joint(Transform):
 
         return self
 
-    def applyRotation(self, rotation: glm.quat = None, recursive: bool = False, bake: bool = False) -> "Joint":
-        return super().applyRotation(rotation, recursive, bake)
+    def applyRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False) -> "Joint":
+        return super().applyRotation(rotation, recursive, bake) # type: ignore
 
-    def applyRestposeRotation(self, rotation: glm.quat = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
+    def applyRestposeRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
         """"Resets the rotation of the Restpose to (1,0,0,0) or adds the given rotation.
         - This does not update the childrens keyframes.
         - If bake is True -> The childrens Restposes will change in position ONLY.
@@ -401,6 +421,7 @@ class Joint(Transform):
 
         Returns itself.
         """
+        if rotation is None: rotation = glm.quat()
         change, changeInverse = self.RestPose._applyRotationGetChanges(rotation)
         self.RestPose.applyRotation(rotation, recursive=False, bake=bakeKeyframes)
 
@@ -412,10 +433,10 @@ class Joint(Transform):
 
         return self
 
-    def applyScale(self, scale: glm.vec3 = None, recursive: bool = False, bake: bool = False) -> "Joint":
-        return super().applyScale(scale, recursive, bake)
+    def applyScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False) -> "Joint":
+        return super().applyScale(scale, recursive, bake) # type: ignore
 
-    def applyRestposeScale(self, scale: glm.vec3 = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
+    def applyRestposeScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
         """"Resets the scale of the Restpose to (1,1,1) or adds the given scale.
         - This does not update the childrens keyframes.
         - If bake is True -> The childrens Restposes will change in position ONLY.
@@ -423,6 +444,7 @@ class Joint(Transform):
 
         Returns itself.
         """
+        if scale is None: scale = glm.vec3()
         change, changeInverse = self.RestPose._applyScaleGetChanges(scale)
         self.RestPose.applyScale(scale, recursive=False, bake=bakeKeyframes)
 
@@ -435,13 +457,13 @@ class Joint(Transform):
         return self
 
     def setEuler(self, degrees: glm.vec3, order: str = 'ZXY', extrinsic: bool = True) -> "Joint":
-        return super().setEuler(degrees, order, extrinsic)
+        return cast("Joint", super().setEuler(degrees, order, extrinsic))
 
     def filter(self, pattern: str, isEqual: bool = False, caseSensitive: bool = False) -> list["Joint"]:
-        return super().filter(pattern, isEqual, caseSensitive)
+        return super().filter(pattern, isEqual, caseSensitive) # type: ignore
 
     def filterRegex(self, pattern: str) -> list["Joint"]:
-        return super().filterRegex(pattern)
+        return super().filterRegex(pattern) # type: ignore
 
     def layout(self, index: int = 0, depth: int = 0) -> list[tuple["Joint", int, int]]:
-        return super().layout(index, depth)
+        return super().layout(index, depth) # type: ignore

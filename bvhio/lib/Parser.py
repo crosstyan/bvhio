@@ -47,7 +47,7 @@ def readAsBvh(path: str, loadKeyFrames: bool = True) -> BvhContainer:
         if not tokens[0] == 'Frames:' or not len(tokens) == 2:
             raise SyntaxError('First line of "MOTION" section has to be "Frames: X"', debugInfo)
         else:
-            bvh.FrameCount = _deserializeFrameCount(tokens[1:], debugInfo)
+            bvh.FrameCount = int(_deserializeFrameCount(tokens[1:], debugInfo))
 
         # check for frame rate
         line, tokens, debugInfo = parseLine(file, line)
@@ -106,10 +106,10 @@ def convertHierarchyToBvh(joint: Joint, frames: int, worldSpace: Optional[Pose] 
     worldSpace.Rotation = worldSpace.Rotation * joint.RestPose.Rotation
     worldSpace.Scale = worldSpace.Scale * joint.RestPose.Scale
 
-    if 1e-02 < glm.l1Norm(sum([glm.abs(pose.Position) for pose in bvh.Keyframes])):
+    if 1e-02 < glm.l1Norm(sum([glm.abs(pose.Position) for pose in bvh.Keyframes])): # type: ignore
         bvh.Channels.extend(['Xposition', 'Yposition', 'Zposition'])
 
-    if 1e-02 < (sum([sum([abs(d) for d in (pose.Rotation - glm.quat()).to_list()]) for pose in bvh.Keyframes])):
+    if 1e-02 < (sum([sum([abs(d) for d in (pose.Rotation - glm.quat()).to_list()]) for pose in bvh.Keyframes])): # type: ignore
         bvh.Channels.extend(['Zrotation', 'Xrotation', 'Yrotation'])
 
     # convert data to bvh
@@ -128,7 +128,9 @@ def convertHierarchyToBvh(joint: Joint, frames: int, worldSpace: Optional[Pose] 
 
 def readAsHierarchy(path: str, loadKeyFrames: bool = True) -> Joint:
     """Deserialize a .bvh file into a joint hierarchy."""
-    return convertBvhToHierarchy(readAsBvh(path, loadKeyFrames).Root).loadRestPose(recursive=True)
+    r = readAsBvh(path, loadKeyFrames).Root
+    assert r is not None, "Root must be defined."
+    return convertBvhToHierarchy(r).loadRestPose(recursive=True)
 
 
 def _parseJoint(file: TextIOWrapper, name: str, line: int = 0) -> BvhJoint:
@@ -171,7 +173,7 @@ def _deserializeOffset(file: TextIOWrapper, line: int) -> glm.vec3:
     if not isinstance(tokens, list) or len(tokens[1:]) != 3:
         raise SyntaxError('Offset must be a 3-part tuple', debugInfo)
     try:
-        return glm.vec3(list(map(float, tokens[1:])))
+        return glm.vec3(list(map(float, tokens[1:]))) # type: ignore
     except ValueError:
         raise SyntaxError('Offset must be numerics only', debugInfo)
 
@@ -242,7 +244,7 @@ def _deserializeMotion(joint: BvhJoint, data: numpy.ndarray, index=0) -> int:
         else: index -= 1
         index += 1
 
-    rotation = Euler.toQuatFrom(glm.radians(rotation), order=rotOrder, extrinsic=False)
+    rotation = Euler.toQuatFrom(glm.radians(rotation), order=rotOrder, extrinsic=False) # type: ignore
     joint.Keyframes.append(Pose(position, rotation))
 
     for child in joint.Children:
@@ -251,6 +253,8 @@ def _deserializeMotion(joint: BvhJoint, data: numpy.ndarray, index=0) -> int:
 
 
 def writeBvh(path: str, bvh: BvhContainer, percision: int = 9) -> None:
+    assert bvh.Root is not None, "Root must be defined."
+    assert bvh.FrameCount is not None, "FrameCount must be defined."
     with open(path, "w") as file:
         file.write('HIERARCHY\n')
         writeJoint(file, bvh.Root, 0, True, percision)
@@ -264,7 +268,7 @@ def writeBvh(path: str, bvh: BvhContainer, percision: int = 9) -> None:
             file.write('\n')
 
 
-def writeHierarchy(path: str, root: Joint, frameTime: float, frames: int = None, percision: int = 9) -> None:
+def writeHierarchy(path: str, root: Joint, frameTime: float, frames: int, percision: int = 9) -> None:
     """Creates an .bvh file from the given hierarchy.
     - frameTime defines the FPS
     - IF frames is None -> THe whole animation is written.
@@ -291,6 +295,7 @@ def writeJoint(file: TextIOWrapper, joint: BvhJoint, indent: int, isFirst: bool,
         file.write(f'{"  "*(indent+1)}End Site\n')
         file.write(f'{"  "*(indent+1)}{{\n')
         file.write(f'{"  "*(indent+2)}OFFSET ')
+        assert joint.EndSite is not None, "EndSite must be defined if there is no child joint."
         file.write(f'{round(joint.EndSite.x, percision)} ')
         file.write(f'{round(joint.EndSite.y, percision)} ')
         file.write(f'{round(joint.EndSite.z, percision)}\n')

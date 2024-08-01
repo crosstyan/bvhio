@@ -1,4 +1,5 @@
 from .BvhJoint import BvhJoint
+from typing import Optional
 
 
 class BvhContainer:
@@ -13,7 +14,7 @@ class BvhContainer:
     FrameCount: int
     FrameTime: float
 
-    def __init__(self, root: BvhJoint = None, frameCount: int = None, frameTime: float = None):
-        self.Root: BvhJoint = root
-        self.FrameCount: int = frameCount
-        self.FrameTime: float = frameTime
+    def __init__(self, root: Optional[BvhJoint] = None, frameCount: Optional[int] = None, frameTime: Optional[float] = None):
+        self.Root = root if root is not None else BvhJoint("Root")
+        self.FrameCount = frameCount if frameCount is not None else 0
+        self.FrameTime = frameTime if frameTime is not None else 0
