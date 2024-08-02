@@ -174,8 +174,8 @@ def _deserializeOffset(file: TextIOWrapper, line: int) -> glm.vec3:
         raise SyntaxError('Offset must be a 3-part tuple', debugInfo)
     try:
         return glm.vec3(list(map(float, tokens[1:]))) # type: ignore
-    except ValueError:
-        raise SyntaxError('Offset must be numerics only', debugInfo)
+    except ValueError as e:
+        raise SyntaxError('Offset must be numerics only', debugInfo) from e
 
 
 def _deserializeChannles(file: TextIOWrapper, line: int) -> list[str]:
@@ -186,8 +186,8 @@ def _deserializeChannles(file: TextIOWrapper, line: int) -> list[str]:
         raise SyntaxError('Channels must be at least a 2-part tuple', debugInfo)
     try:
         channelCount = int(tokens[1])
-    except ValueError:
-        raise SyntaxError('Channel count must be numerical', debugInfo)
+    except ValueError as e:
+        raise SyntaxError('Channel count must be numerical', debugInfo) from e
     if channelCount != len(tokens[2:]):
         raise SyntaxError('Channel count mismatch with labels', debugInfo)
     return tokens[2:]
@@ -209,8 +209,8 @@ def _deserializeFrameTime(data: list, debugInfo: tuple) -> float:
         raise SyntaxError('Frame time must be a 1-dimensional tuple', debugInfo)
     try:
         return float(data[0])
-    except ValueError:
-        raise SyntaxError('Frame time be numerical', debugInfo)
+    except ValueError as e:
+        raise SyntaxError('Frame time be numerical', debugInfo) from e
 
 
 def _deserializeFrameCount(data: list, debugInfo: tuple) -> float:
@@ -218,15 +218,15 @@ def _deserializeFrameCount(data: list, debugInfo: tuple) -> float:
         raise SyntaxError('Frame count must be a 1-dimensional tuple', debugInfo)
     try:
         return int(data[0])
-    except ValueError:
-        raise SyntaxError('Frame time be numerical', debugInfo)
+    except ValueError as e:
+        raise SyntaxError('Frame time be numerical', debugInfo) from e
 
 
 def _deserializeKeyframe(data: list, debugInfo: tuple) -> numpy.ndarray:
     try:
         return numpy.array(list(map(float, data)))
-    except ValueError:
-        raise SyntaxError('Keyframe must be numerics only', debugInfo)
+    except ValueError as e:
+        raise SyntaxError('Keyframe must be numerics only', debugInfo) from e
 
 
 def _deserializeMotion(joint: BvhJoint, data: numpy.ndarray, index=0) -> int:
