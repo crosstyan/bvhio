@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional, cast, Self
 import glm
 import bisect
 from SpatialTransform import Transform, Pose
@@ -134,7 +134,7 @@ class Joint(Transform):
                 )
                 return restPoseCopy.Children[0]
 
-    def setKeyframe(self, frame: int, pose: Transform, keep: Optional[list[str]] = None) -> "Joint":
+    def setKeyframe(self, frame: int, pose: Transform, keep: Optional[list[str]] = None) -> Self:
         """Inserts the given pose to the the keyframes.
         - If there is already a keyframe at the frame id, it will be overwritten.
         - If the frame number is negative, it counts as the n-th frame from the end.
@@ -175,7 +175,7 @@ class Joint(Transform):
 
         return self
 
-    def loadKeyframe(self, frame: int, recursive: bool = True, use: Optional[list[str]] = None) -> "Joint":
+    def loadKeyframe(self, frame: int, recursive: bool = True, use: Optional[list[str]] = None) -> Self:
         """Loads the pose at the given frame into the transforms properties.
         - This is the animation data without rest pose.
 
@@ -193,7 +193,7 @@ class Joint(Transform):
 
         return self
 
-    def loadRestPose(self, recursive: bool = True, use: Optional[list[str]] = None) -> "Joint":
+    def loadRestPose(self, recursive: bool = True, use: Optional[list[str]] = None) -> Self:
         """Sets joint properties to the rest pose.
         - If recursive is True -> Child joints do also load their rest pose.
 
@@ -377,18 +377,18 @@ class Joint(Transform):
 
         return self
 
-    def clearParent(self, keep: Optional[list[str]]  = None) -> "Joint":
+    def clearParent(self, keep: Optional[list[str]]  = None) -> Self:
         if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
-        return cast("Joint", super().clearParent(keep=keep)) 
+        return super().clearParent(keep=keep) 
 
-    def clearChildren(self, keep: Optional[list[str]] = None) -> "Joint":
+    def clearChildren(self, keep: Optional[list[str]] = None) -> Self:
         if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
-        return cast("Joint", super().clearChildren(keep=keep))
+        return super().clearChildren(keep=keep)
 
-    def applyPosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> "Joint":
-        return super().applyPosition(position, recursive) # type: ignore
+    def applyPosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> Self:
+        return super().applyPosition(position, recursive)
 
-    def applyRestposePosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> "Joint":
+    def applyRestposePosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> Self:
         """"Resets the position of the Restpose to (0,0,0) or adds the given position.
         - This will load the restpose and overwrites the current pose of the transform!
         - You may want to call `loadPose` after this one or store the current properties.
@@ -410,10 +410,10 @@ class Joint(Transform):
 
         return self
 
-    def applyRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False) -> "Joint":
-        return super().applyRotation(rotation, recursive, bake) # type: ignore
+    def applyRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False) -> Self:
+        return super().applyRotation(rotation, recursive, bake)
 
-    def applyRestposeRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
+    def applyRestposeRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> Self:
         """"Resets the rotation of the Restpose to (1,0,0,0) or adds the given rotation.
         - This does not update the childrens keyframes.
         - If bake is True -> The childrens Restposes will change in position ONLY.
@@ -433,8 +433,8 @@ class Joint(Transform):
 
         return self
 
-    def applyScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False) -> "Joint":
-        return super().applyScale(scale, recursive, bake) # type: ignore
+    def applyScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False) -> Self:
+        return super().applyScale(scale, recursive, bake)
 
     def applyRestposeScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
         """"Resets the scale of the Restpose to (1,1,1) or adds the given scale.
@@ -456,14 +456,14 @@ class Joint(Transform):
 
         return self
 
-    def setEuler(self, degrees: glm.vec3, order: str = 'ZXY', extrinsic: bool = True) -> "Joint":
-        return cast("Joint", super().setEuler(degrees, order, extrinsic))
+    def setEuler(self, degrees: glm.vec3, order: str = 'ZXY', extrinsic: bool = True) -> Self:
+        return super().setEuler(degrees, order, extrinsic)
 
-    def filter(self, pattern: str, isEqual: bool = False, caseSensitive: bool = False) -> list["Joint"]:
-        return super().filter(pattern, isEqual, caseSensitive) # type: ignore
+    def filter(self, pattern: str, isEqual: bool = False, caseSensitive: bool = False) -> list[Transform]:
+        return super().filter(pattern, isEqual, caseSensitive)
 
-    def filterRegex(self, pattern: str) -> list["Joint"]:
-        return super().filterRegex(pattern) # type: ignore
+    def filterRegex(self, pattern: str) -> list[Transform]:
+        return super().filterRegex(pattern)
 
-    def layout(self, index: int = 0, depth: int = 0) -> list[tuple["Joint", int, int]]:
-        return super().layout(index, depth) # type: ignore
+    def layout(self, index: int = 0, depth: int = 0) -> list[tuple[Self, int, int]]:
+        return super().layout(index, depth)

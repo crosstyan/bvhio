@@ -244,7 +244,7 @@ def _deserializeMotion(joint: BvhJoint, data: numpy.ndarray, index=0) -> int:
         else: index -= 1
         index += 1
 
-    rotation = Euler.toQuatFrom(glm.radians(rotation), order=rotOrder, extrinsic=False) # type: ignore
+    rotation = Euler.toQuatFrom(glm.radians(rotation), order=rotOrder, extrinsic=False)
     joint.Keyframes.append(Pose(position, rotation))
 
     for child in joint.Children:
