@@ -315,7 +315,7 @@ class Joint(Transform):
 
         return self
 
-    def attach(self, *nodes: "Joint", keep: Optional[list[str]] = None) -> "Joint":
+    def attach(self, *nodes: Self, keep: Optional[list[str]] = None) -> Self:
         if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
         super().attach(*nodes, keep=keep)
 
@@ -346,7 +346,7 @@ class Joint(Transform):
 
         return self
 
-    def detach(self, *nodes: "Joint", keep: Optional[list[str]] = None) -> "Joint":
+    def detach(self, *nodes: Self, keep: Optional[list[str]] = None) -> Self:
         if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
         super().detach(*nodes)
 
@@ -385,9 +385,6 @@ class Joint(Transform):
         if keep is None: keep = ['position', 'rotation', 'scale', 'rest', 'anim']
         return super().clearChildren(keep=keep)
 
-    def applyPosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> Self:
-        return super().applyPosition(position, recursive)
-
     def applyRestposePosition(self, position: Optional[glm.vec3] = None, recursive: bool = False) -> Self:
         """"Resets the position of the Restpose to (0,0,0) or adds the given position.
         - This will load the restpose and overwrites the current pose of the transform!
@@ -410,9 +407,6 @@ class Joint(Transform):
 
         return self
 
-    def applyRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False) -> Self:
-        return super().applyRotation(rotation, recursive, bake)
-
     def applyRestposeRotation(self, rotation: Optional[glm.quat] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> Self:
         """"Resets the rotation of the Restpose to (1,0,0,0) or adds the given rotation.
         - This does not update the childrens keyframes.
@@ -433,9 +427,6 @@ class Joint(Transform):
 
         return self
 
-    def applyScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False) -> Self:
-        return super().applyScale(scale, recursive, bake)
-
     def applyRestposeScale(self, scale: Optional[glm.vec3] = None, recursive: bool = False, bake: bool = False, bakeKeyframes: bool = False) -> "Joint":
         """"Resets the scale of the Restpose to (1,1,1) or adds the given scale.
         - This does not update the childrens keyframes.
@@ -455,15 +446,3 @@ class Joint(Transform):
                 child.applyRestposeScale(scale=scale, recursive=True, bake=bake, bakeKeyframes=bakeKeyframes)
 
         return self
-
-    def setEuler(self, degrees: glm.vec3, order: str = 'ZXY', extrinsic: bool = True) -> Self:
-        return super().setEuler(degrees, order, extrinsic)
-
-    def filter(self, pattern: str, isEqual: bool = False, caseSensitive: bool = False) -> list[Transform]:
-        return super().filter(pattern, isEqual, caseSensitive)
-
-    def filterRegex(self, pattern: str) -> list[Transform]:
-        return super().filterRegex(pattern)
-
-    def layout(self, index: int = 0, depth: int = 0) -> list[tuple[Self, int, int]]:
-        return super().layout(index, depth)
